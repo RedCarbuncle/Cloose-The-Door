@@ -1,0 +1,1112 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+
+// ─── THEME ────────────────────────────────────────────────────────────────────
+const T = {
+  bg:      "#0A0A0A",
+  card:    "#141414",
+  card2:   "#1A1A1A",
+  border:  "#242424",
+  border2: "#2E2E2E",
+  text:    "#FFFFFF",
+  sub:     "#909090",
+  dim:     "#484848",
+  accent:  "#4A7CF4",
+  accent2: "#6B96F8",
+  green:   "#3ECF6A",
+  green2:  "#5EE88A",
+  greenBg: "#0D2B18",
+  red:     "#E05555",
+  red2:    "#FF7070",
+  redBg:   "#2B0D0D",
+  yellow:  "#C4A030",
+};
+
+// ─── DATA ─────────────────────────────────────────────────────────────────────
+const DAYS = [
+  { key:"Pull1", label:"Tirón",        num:"01", sub:"Espalda · Bíceps · Delt. Post" },
+  { key:"Push1", label:"Empujes",      num:"02", sub:"Pecho · Hombro · Tríceps" },
+  { key:"Legs1", label:"Pierna",       num:"03", sub:"Pierna completa" },
+  { key:"Pull2", label:"Tirón",        num:"04", sub:"Espalda · Bíceps · Delt. Post" },
+  { key:"Push2", label:"Empujes",      num:"05", sub:"Pecho · Hombro · Tríceps" },
+  { key:"Mix",   label:"Recordatorio", num:"06", sub:"Hombro · Brazo · Pierna" },
+];
+
+const DEFAULT_ROUTINE = {
+  Pull1:[
+    {name:"Dominadas lastradas",       sets:5,reps:"Fallo", rest:120,notes:"Drop set final −5 kg · Tempo"},
+    {name:"Remo Gironda tortuga",       sets:3,reps:"6–8",   rest:120,notes:""},
+    {name:"Remo Gironda unilateral",    sets:3,reps:"10–12", rest:120,notes:""},
+    {name:"Jalón máquina unilateral",   sets:3,reps:"10–12", rest:90, notes:""},
+    {name:"Delt. posterior uni polea",  sets:3,reps:"12–14", rest:60, notes:"Drop set final −5 kg"},
+    {name:"Curl bíceps barra Z",        sets:3,reps:"6–8",   rest:120,notes:"Drop set final −5 kg"},
+    {name:"Curl máquina inclinado",     sets:3,reps:"10–12", rest:60, notes:""},
+    {name:"Sóleo en máquina",           sets:4,reps:"Fallo", rest:60, notes:""},
+  ],
+  Push1:[
+    {name:"Press plano mancuernas",                 sets:3,reps:"6–8",   rest:120,notes:""},
+    {name:"Press inclinado máquina",                sets:3,reps:"10–12", rest:120,notes:""},
+    {name:"Peck deck",                              sets:4,reps:"10–12", rest:60, notes:"Últimas 2 drop sets"},
+    {name:"Elevaciones laterales sentado 45°",      sets:3,reps:"8–10",  rest:90, notes:"Terminar erguido · drop set final"},
+    {name:"Deltoides unilat. inclinado mancuernas", sets:3,reps:"10–12", rest:60, notes:"Apoyado en pared"},
+    {name:"Press francés",                          sets:3,reps:"8–10",  rest:120,notes:""},
+    {name:"Tríceps unilateral polea arriba",        sets:3,reps:"12–14", rest:60, notes:"Drop set final"},
+  ],
+  Legs1:[
+    {name:"Prensa",                        sets:3,reps:"6–8",   rest:120,notes:"Permutar con Día 6"},
+    {name:"Peso muerto rumano mancuernas", sets:3,reps:"12–16", rest:120,notes:""},
+    {name:"Búlgaras",                      sets:2,reps:"12–14", rest:120,notes:""},
+    {name:"Hiperextensión glúteo",         sets:3,reps:"Fallo", rest:90, notes:""},
+    {name:"Extensión cuádriceps",          sets:3,reps:"12–14", rest:60, notes:"Últimas 2 drop sets"},
+    {name:"Curl isquio tumbado",           sets:3,reps:"12–14", rest:60, notes:"Últimas 2 drop sets"},
+    {name:"Aperturas aductor",             sets:3,reps:"12–14", rest:60, notes:"Últimas 2 drop sets"},
+    {name:"Gemelo máquina prensa",         sets:4,reps:"Fallo", rest:60, notes:""},
+  ],
+  Pull2:[
+    {name:"Remo barra supino",                 sets:3,reps:"6–8",   rest:120,notes:""},
+    {name:"Elevaciones Y banco mancuernas",    sets:3,reps:"10–12", rest:90, notes:""},
+    {name:"FacePull polea alta cuerdas",       sets:3,reps:"12–16", rest:60, notes:"Polea ojos · rotación · 2 drop sets"},
+    {name:"Jalón clásico",                     sets:3,reps:"8–10",  rest:120,notes:"No tortuga"},
+    {name:"Jalón unilateral",                  sets:2,reps:"10–12", rest:90, notes:"Borde · cruzado · 2 drop sets"},
+    {name:"Remo gironda unilateral polea",     sets:2,reps:"6–8",   rest:60, notes:"Drop set final"},
+    {name:"Remo ancho neutro",                 sets:3,reps:"12–14", rest:90, notes:"Agarre jalón · 2 drop sets"},
+    {name:"Bíceps Scott unilateral mancuerna", sets:3,reps:"8–10",  rest:60, notes:""},
+    {name:"Curl Bayesian mancuernas banco",    sets:3,reps:"10–12", rest:60, notes:"Últimas 2 drop sets"},
+  ],
+  Push2:[
+    {name:"Press inclinado 60° mancuernas", sets:3,reps:"8–10",  rest:120,notes:""},
+    {name:"Press inclinado máquina",        sets:3,reps:"12–14", rest:120,notes:""},
+    {name:"Aperturas",                      sets:4,reps:"12–14", rest:60, notes:"Drop set final"},
+    {name:"Elevaciones unilaterales polea", sets:3,reps:"10–12", rest:60, notes:"Polea por detrás"},
+    {name:"Elevaciones laterales máquina",  sets:3,reps:"12–14", rest:60, notes:"Drop set final"},
+    {name:"Tríceps agarre V",              sets:3,reps:"8–10",  rest:90, notes:"Drop set final"},
+    {name:"Tríceps unilateral polea baja", sets:3,reps:"12–14", rest:60, notes:""},
+    {name:"Sóleo máquina sentado",         sets:4,reps:"Fallo", rest:60, notes:""},
+  ],
+  Mix:[
+    {name:"Prensa (pies bajos, tempo)",      sets:3,reps:"8–10",  rest:120,notes:"Permutar con Día 3"},
+    {name:"Sentadilla Sissy libre",          sets:4,reps:"Fallo", rest:60, notes:""},
+    {name:"Glúteo máquina apertura",         sets:3,reps:"Fallo", rest:60, notes:"Drop set final"},
+    {name:"FacePull cuerdas",               sets:3,reps:"12–14", rest:60, notes:"Polea alta"},
+    {name:"Elevaciones laterales clásicas", sets:3,reps:"8–10",  rest:60, notes:"Últimas 2 drop sets"},
+    {name:"Tríceps polea med-baj barra W",  sets:3,reps:"12–14", rest:90, notes:"Bipolea"},
+    {name:"Curl martillo cuerdas",          sets:3,reps:"8–10",  rest:90, notes:"Últimas 2 drop sets"},
+  ],
+};
+
+// ─── SUPABASE ─────────────────────────────────────────────────────────────────
+const SB_URL = "https://yufksnenwsgbgwutpucc.supabase.co";
+const SB_KEY = "sb_publishable_Kyz6cXjoQKvzEa9yjcOt9g_wuuQ1S03";
+const SB_HDR = { "Content-Type":"application/json", "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` };
+
+// Stable anonymous user ID — stored in localStorage so it persists across sessions
+const getUserId = () => {
+  let id = localStorage.getItem("gym_user_id");
+  if (!id) { id = "u_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem("gym_user_id", id); }
+  return id;
+};
+
+const sbFetch = async (path, opts={}) => {
+  const res = await fetch(SB_URL + path, { ...opts, headers: { ...SB_HDR, ...(opts.headers||{}) } });
+  if (!res.ok && res.status !== 409) console.error("Supabase error", res.status, await res.text());
+  return res;
+};
+
+const db = {
+  load: async () => {
+    try {
+      const uid = getUserId();
+      const res = await sbFetch(`/rest/v1/sessions?user_id=eq.${uid}&select=date,day_key,data`);
+      if (!res.ok) return {};
+      const rows = await res.json();
+      const out = {};
+      rows.forEach(r => { if(!out[r.date]) out[r.date]={}; out[r.date][r.day_key]=r.data; });
+      return out;
+    } catch { return {}; }
+  },
+
+  save: async (allData) => {
+    try {
+      const uid = getUserId();
+      const today = new Date().toISOString().split("T")[0];
+      const dayMap = allData[today] || {};
+      for (const [dayKey, data] of Object.entries(dayMap)) {
+        await sbFetch(`/rest/v1/sessions`, {
+          method: "POST",
+          headers: { "Prefer": "resolution=merge-duplicates" },
+          body: JSON.stringify({ user_id:uid, date:today, day_key:dayKey, data, updated_at: new Date().toISOString() }),
+        });
+      }
+    } catch(e) { console.error(e); }
+  },
+
+  loadR: async () => {
+    try {
+      const uid = getUserId();
+      const res = await sbFetch(`/rest/v1/routine?user_id=eq.${uid}&select=data`);
+      if (!res.ok) return null;
+      const rows = await res.json();
+      return rows.length ? rows[0].data : null;
+    } catch { return null; }
+  },
+
+  saveR: async (data) => {
+    try {
+      const uid = getUserId();
+      await sbFetch(`/rest/v1/routine`, {
+        method: "POST",
+        headers: { "Prefer": "resolution=merge-duplicates" },
+        body: JSON.stringify({ user_id:uid, data, updated_at: new Date().toISOString() }),
+      });
+    } catch(e) { console.error(e); }
+  },
+};
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+const todayKey   = () => new Date().toISOString().split("T")[0];
+const weekAgoKey = () => { const d=new Date(); d.setDate(d.getDate()-7); return d.toISOString().split("T")[0]; };
+const fmtDate    = d => new Date(d+"T12:00:00").toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"});
+const fmtTime    = s => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+const restLbl    = r => !r?"":r<60?`${r}s`:r===60?"1 min":r===90?"1:30":r===120?"2 min":"3 min";
+
+const nextDayIdx = data => {
+  for(const date of Object.keys(data).sort().reverse()){
+    const keys=Object.keys(data[date]||{});
+    if(!keys.length) continue;
+    const idx=Math.max(...keys.map(k=>DAYS.findIndex(d=>d.key===k)));
+    if(idx>=0) return (idx+1)%DAYS.length;
+  }
+  return 0;
+};
+
+const lastSessionSets = (data, exName) => {
+  const today=todayKey();
+  for(const date of Object.keys(data).filter(d=>d<today).sort().reverse()){
+    for(const session of Object.values(data[date]||{})){
+      const sets=session?.exercises?.[exName]?.sets;
+      if(sets?.length && sets.some(s=>(parseFloat(s.weight)||0)>0)) return {date,sets};
+    }
+  }
+  return null;
+};
+
+const lastNSessions = (data, exName, n=6) => {
+  const results=[];
+  for(const date of Object.keys(data).sort().reverse()){
+    if(results.length>=n) break;
+    for(const session of Object.values(data[date]||{})){
+      const sets=session?.exercises?.[exName]?.sets;
+      if(sets?.length && sets.some(s=>(parseFloat(s.weight)||0)>0)){
+        const best=sets.reduce((m,s)=>Math.max(m,parseFloat(s.weight)||0),0);
+        const vol=sets.reduce((a,s)=>a+(parseFloat(s.weight)||0)*(parseFloat(s.reps)||0),0);
+        results.push({date,sets,best,vol}); break;
+      }
+    }
+  }
+  return results.reverse();
+};
+
+const weeklyBests = (data, exName) => {
+  const wm={};
+  Object.entries(data).forEach(([date,dm])=>{
+    if(!dm) return;
+    const d=new Date(date+"T12:00:00");
+    const jan4=new Date(d.getFullYear(),0,4);
+    const wk=Math.ceil(((d-jan4)/86400000+jan4.getDay()+1)/7);
+    const wkKey=`${d.getFullYear()}-W${String(wk).padStart(2,"0")}`;
+    Object.values(dm).forEach(s=>{
+      (s?.exercises?.[exName]?.sets||[]).forEach(r=>{
+        const kg=parseFloat(r.weight)||0;
+        if(kg>0&&(!wm[wkKey]||kg>wm[wkKey].kg)) wm[wkKey]={kg,date,reps:parseFloat(r.reps)||0};
+      });
+    });
+  });
+  return Object.entries(wm).sort(([a],[b])=>a.localeCompare(b)).map(([wk,v])=>({wk,...v}));
+};
+
+const bestInRange = (data,name,from,to) => {
+  let best=null;
+  Object.entries(data).forEach(([date,dm])=>{
+    if(date<from||date>to) return;
+    Object.values(dm||{}).forEach(s=>{
+      (s?.exercises?.[name]?.sets||[]).forEach(r=>{
+        const kg=parseFloat(r.weight)||0,reps=parseFloat(r.reps)||0;
+        if(kg>0&&(!best||kg>best.kg)) best={kg,reps};
+      });
+    });
+  });
+  return best;
+};
+
+// Has the exercise EVER been done (any date)?
+const everDone = (data, exName) => {
+  for(const dm of Object.values(data)){
+    for(const session of Object.values(dm||{})){
+      if((session?.exercises?.[exName]?.sets||[]).some(s=>(parseFloat(s.weight)||0)>0)) return true;
+    }
+  }
+  return false;
+};
+
+// ─── FLOATING TIMER ───────────────────────────────────────────────────────────
+function FloatingTimer() {
+  const [open,      setOpen]      = useState(false);
+  const [preset,    setPreset]    = useState(120);
+  const [remaining, setRemaining] = useState(120);
+  const [phase,     setPhase]     = useState("idle");
+  const ref = useRef(null);
+
+  const clear=()=>{clearInterval(ref.current);ref.current=null;};
+  const start=secs=>{clear();setRemaining(secs);setPhase("running");
+    ref.current=setInterval(()=>setRemaining(p=>{if(p<=1){clear();setPhase("done");return 0;}return p-1;}),1000);};
+  const stop=()=>{clear();setPhase("idle");setRemaining(preset);};
+  useEffect(()=>()=>clear(),[]);
+
+  const r=38, circ=2*Math.PI*r;
+  const pct=phase==="running"?remaining/preset:phase==="done"?0:1;
+  const clr=phase==="done"?T.green2:phase==="running"?T.accent2:T.dim;
+  const fabLabel=phase==="running"&&!open?fmtTime(remaining):phase==="done"&&!open?"GO!":null;
+  const fabColor=phase==="done"?T.green2:phase==="running"?T.accent2:T.sub;
+
+  return (
+    <>
+      {open&&<div onClick={()=>setOpen(false)} style={{position:"fixed",inset:0,zIndex:99,background:"rgba(0,0,0,0.6)"}}/>}
+      {open&&(
+        <div style={{
+          position:"fixed",bottom:"88px",left:"16px",zIndex:100,
+          background:T.card,border:`1px solid ${T.border2}`,borderRadius:"20px",
+          padding:"20px",width:"272px",
+          boxShadow:"0 16px 48px rgba(0,0,0,0.8)",
+          animation:"slideUp .18s ease",
+        }}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+            <span style={{fontSize:"11px",fontWeight:"700",color:T.sub,letterSpacing:"0.14em",textTransform:"uppercase"}}>Descanso</span>
+            <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:T.dim,cursor:"pointer",fontSize:"20px",padding:0,lineHeight:1}}>×</button>
+          </div>
+          <div style={{display:"flex",justifyContent:"center",marginBottom:"16px"}}>
+            <div onClick={phase==="idle"?()=>start(preset):stop} style={{cursor:"pointer"}}>
+              <svg width="110" height="110" viewBox="0 0 110 110">
+                <circle cx="55" cy="55" r={r} fill="none" stroke={T.border2} strokeWidth="5"/>
+                <circle cx="55" cy="55" r={r} fill="none" stroke={clr} strokeWidth="5"
+                  strokeDasharray={`${pct*circ} ${circ}`} strokeLinecap="round"
+                  transform="rotate(-90 55 55)"
+                  style={{transition:phase==="running"?"stroke-dasharray .9s linear,stroke .3s":"stroke .3s"}}/>
+                <text x="55" y="50" textAnchor="middle" fill={phase==="done"?T.green2:T.text}
+                  fontSize="28" fontWeight="800" fontFamily="monospace">{phase==="done"?"GO!":fmtTime(phase==="running"?remaining:preset)}</text>
+                <text x="55" y="68" textAnchor="middle" fill={T.dim} fontSize="11">
+                  {phase==="idle"?"toca para iniciar":phase==="running"?"toca para parar":""}</text>
+              </svg>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:"5px",marginBottom:"12px"}}>
+            {[[60,"1'"],[90,"1:30"],[120,"2'"],[180,"3'"]].map(([s,l])=>{
+              const act=preset===s;
+              return <button key={s} onClick={()=>{setPreset(s);if(phase!=="running")setRemaining(s);else start(s);}} style={{
+                flex:1,padding:"7px 0",borderRadius:"8px",cursor:"pointer",fontSize:"12px",fontWeight:"700",
+                border:`1px solid ${act?T.accent:T.border2}`,
+                background:act?T.accent+"22":"transparent",
+                color:act?T.accent2:T.sub,
+              }}>{l}</button>;
+            })}
+          </div>
+          <div style={{display:"flex",gap:"8px"}}>
+            {phase==="idle"&&<button onClick={()=>start(preset)} style={{...PB(T.accent),flex:1,justifyContent:"center"}}>▶ Iniciar</button>}
+            {phase==="running"&&<>
+              <button onClick={stop} style={{...PB(T.red),flex:1,justifyContent:"center"}}>■ Parar</button>
+              <button onClick={()=>start(preset)} style={PB(T.sub)}>↺</button>
+            </>}
+            {phase==="done"&&<button onClick={stop} style={{...PB(T.green),flex:1,justifyContent:"center"}}>✓ Listo</button>}
+          </div>
+        </div>
+      )}
+      {/* FAB */}
+      <button onClick={()=>setOpen(o=>!o)} style={{
+        position:"fixed",bottom:"24px",left:"16px",zIndex:101,
+        height:"52px",minWidth:"52px",
+        width:fabLabel?"auto":"52px",
+        paddingLeft:fabLabel?"16px":"0",paddingRight:fabLabel?"16px":"0",
+        borderRadius:"26px",
+        background:phase==="done"?T.greenBg:phase==="running"?T.accent+"18":T.card2,
+        border:`1.5px solid ${phase==="done"?T.green:phase==="running"?T.accent:T.border2}`,
+        boxShadow:`0 4px 20px rgba(0,0,0,0.6)${phase==="running"?`, 0 0 16px ${T.accent}33`:""}`,
+        cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:"6px",
+        transition:"all .2s",
+      }}>
+        <svg width="20" height="20" viewBox="0 0 22 22" fill="none">
+          <circle cx="11" cy="12" r="8" stroke={fabColor} strokeWidth="1.8"/>
+          <path d="M11 12 L11 8" stroke={fabColor} strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M8.5 2.5 L13.5 2.5" stroke={fabColor} strokeWidth="1.8" strokeLinecap="round"/>
+          <path d="M11 2.5 L11 4" stroke={fabColor} strokeWidth="1.8" strokeLinecap="round"/>
+        </svg>
+        {fabLabel&&<span style={{fontSize:"13px",fontWeight:"800",color:fabColor,fontFamily:"monospace"}}>{fabLabel}</span>}
+      </button>
+    </>
+  );
+}
+
+// ─── EXERCISE CARD ────────────────────────────────────────────────────────────
+function ExCard({ index, name, meta, data, onChange, allData }) {
+  const sets  = data.sets||[];
+  const notes = data.notes!==undefined?data.notes:(meta?.notes||"");
+  const refs  = useRef({});
+
+  const wAgo=weekAgoKey(), today=todayKey();
+  const d2=new Date(); d2.setDate(d2.getDate()-14);
+  const twoW=d2.toISOString().split("T")[0];
+  const thisBest=bestInRange(allData,name,wAgo,today);
+  const lastBest=bestInRange(allData,name,twoW,wAgo);
+  const delta=thisBest&&lastBest?thisBest.kg-lastBest.kg:null;
+
+  const tgt  = meta?.sets||3;
+  const done = sets.filter(s=>(parseFloat(s.weight)||0)>0&&(parseFloat(s.reps)||0)>0).length;
+  const pct  = Math.min(done/tgt,1);
+  const completed = pct===1;
+
+  // Color state
+  const cardColor = completed ? T.green : T.accent;
+  const cardBg    = completed ? T.greenBg : T.card;
+  const cardBorder= completed ? T.green+"88" : T.border;
+
+  // Collapse on complete
+  const [open, setOpen] = useState(true);
+  const wasCompleted = useRef(false);
+  useEffect(()=>{
+    if(completed&&!wasCompleted.current) setOpen(false);
+    if(!completed) setOpen(true);
+    wasCompleted.current=completed;
+  },[completed]);
+
+  const lastSess = lastSessionSets(allData, name);
+
+  // Pre-fill from last session
+  const prefilled = useRef(false);
+  useEffect(()=>{
+    if(prefilled.current) return;
+    if(sets.length===0&&lastSess?.sets?.length){
+      prefilled.current=true;
+      const ps=lastSess.sets.filter(s=>(parseFloat(s.weight)||0)>0)
+        .map(s=>({weight:s.weight,reps:s.reps||"",id:Date.now()+Math.random()}));
+      if(ps.length) onChange({...data,notes,sets:ps});
+    }
+  },[]); // eslint-disable-line
+
+  const addSet=()=>{
+    const last=sets[sets.length-1];
+    onChange({...data,notes,sets:[...sets,{weight:last?.weight||"",reps:last?.reps||"",id:Date.now()}]});
+  };
+  const upd=(i,f,v)=>{const ns=[...sets];ns[i]={...ns[i],[f]:v};onChange({...data,notes,sets:ns});};
+  const del=i=>onChange({...data,notes,sets:sets.filter((_,j)=>j!==i)});
+
+  const summaryText=sets.filter(s=>(parseFloat(s.weight)||0)>0).map(s=>`${s.weight}${s.reps?`×${s.reps}`:""}`).join(" · ");
+
+  return (
+    <div style={{
+      background:cardBg,
+      border:`1px solid ${cardBorder}`,
+      borderRadius:"16px",marginBottom:"8px",overflow:"hidden",
+      transition:"all .35s",
+    }}>
+      {/* Header */}
+      <div onClick={()=>setOpen(o=>!o)} style={{
+        display:"flex",alignItems:"center",gap:"12px",
+        padding:"15px 16px",cursor:"pointer",
+      }}>
+        {/* Index badge */}
+        <div style={{
+          width:"32px",height:"32px",borderRadius:"10px",flexShrink:0,
+          background:completed?T.green+"30":T.accent+"20",
+          border:`1.5px solid ${cardColor}55`,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          fontSize:completed?"16px":"13px",fontWeight:"800",color:cardColor,
+        }}>{completed?"✓":index}</div>
+
+        {/* Name + meta */}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:"16px",fontWeight:"800",color:completed?T.green2:T.text,letterSpacing:"-0.02em",lineHeight:1.2}}>
+            {name}
+          </div>
+          <div style={{fontSize:"13px",fontWeight:"600",color:T.sub,marginTop:"3px"}}>
+            {meta?.sets} series · {meta?.reps}
+            {meta?.rest?<span style={{color:T.dim,fontWeight:"400"}}> · {restLbl(meta.rest)}</span>:null}
+          </div>
+          {/* Collapsed summary OR never-done label */}
+          {!open&&summaryText&&(
+            <div style={{fontSize:"12px",color:cardColor,marginTop:"4px",fontFamily:"monospace",fontWeight:"700",
+              overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              {summaryText}
+            </div>
+          )}
+        </div>
+
+        {/* Ring */}
+        <svg width="42" height="42" viewBox="0 0 42 42" style={{flexShrink:0}}>
+          <circle cx="21" cy="21" r="17" fill="none" stroke={T.border2} strokeWidth="3"/>
+          <circle cx="21" cy="21" r="17" fill="none" stroke={cardColor} strokeWidth="3"
+            strokeDasharray={`${pct*106.8} 106.8`} strokeLinecap="round"
+            transform="rotate(-90 21 21)" style={{transition:"stroke-dasharray .4s"}}/>
+          <text x="21" y="25" textAnchor="middle" fill={cardColor}
+            fontSize="10" fontWeight="800" fontFamily="monospace">{done}/{tgt}</text>
+        </svg>
+        <span style={{fontSize:"11px",color:T.dim}}>{open?"▲":"▼"}</span>
+      </div>
+
+      {/* Body */}
+      {open&&(
+        <div style={{padding:"0 16px 16px"}}>
+
+          {/* Delta */}
+          {delta!==null&&(
+            <div style={{marginBottom:"10px",display:"inline-flex",alignItems:"center",gap:"6px",
+              background:delta>=0?T.green+"18":T.red+"18",
+              border:`1px solid ${delta>=0?T.green+"55":T.red+"55"}`,
+              borderRadius:"20px",padding:"4px 12px"}}>
+              <span style={{fontSize:"13px",fontWeight:"800",color:delta>=0?T.green2:T.red2}}>
+                {delta>0?"+":""}{delta.toFixed(1)} kg
+              </span>
+              <span style={{fontSize:"11px",color:T.sub}}>vs semana pasada</span>
+            </div>
+          )}
+
+          {/* Never done warning removed */}
+
+          {/* Last session ref */}
+          {lastSess&&(
+            <div style={{marginBottom:"12px",background:T.bg,borderRadius:"10px",
+              padding:"10px 12px",border:`1px solid ${T.border2}`}}>
+              <div style={{fontSize:"9px",fontWeight:"700",color:T.dim,letterSpacing:"0.12em",
+                textTransform:"uppercase",marginBottom:"8px"}}>
+                Sesión anterior · {fmtDate(lastSess.date)}
+              </div>
+              <div style={{display:"flex",gap:"5px",flexWrap:"wrap"}}>
+                {lastSess.sets.filter(s=>(parseFloat(s.weight)||0)>0).map((s,i)=>(
+                  <div key={i} style={{background:T.card,border:`1px solid ${T.border2}`,
+                    borderRadius:"8px",padding:"5px 10px",display:"flex",gap:"4px",alignItems:"baseline"}}>
+                    <span style={{fontSize:"9px",color:T.dim,fontFamily:"monospace"}}>{i+1}</span>
+                    <span style={{fontSize:"15px",fontWeight:"800",color:T.accent2,fontFamily:"monospace",lineHeight:1}}>{s.weight}</span>
+                    <span style={{fontSize:"10px",color:T.sub}}>kg</span>
+                    {s.reps&&<><span style={{fontSize:"10px",color:T.dim}}>×</span>
+                    <span style={{fontSize:"12px",fontWeight:"700",color:T.sub,fontFamily:"monospace"}}>{s.reps}</span></>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Column headers */}
+          {sets.length>0&&(
+            <div style={{display:"grid",gridTemplateColumns:"30px 1fr 1fr 24px",gap:"6px",marginBottom:"6px"}}>
+              {["","KG","REPS",""].map((h,i)=>(
+                <div key={i} style={{fontSize:"10px",fontWeight:"700",color:T.dim,letterSpacing:"0.1em"}}>{h}</div>
+              ))}
+            </div>
+          )}
+
+          {sets.map((s,i)=>{
+            const ok=(parseFloat(s.weight)||0)>0&&(parseFloat(s.reps)||0)>0;
+            return (
+              <div key={s.id||i} style={{display:"grid",gridTemplateColumns:"30px 1fr 1fr 24px",gap:"6px",alignItems:"center",marginBottom:"6px"}}>
+                <div style={{
+                  width:"28px",height:"28px",borderRadius:"8px",
+                  background:ok?T.green+"25":T.card2,border:`1px solid ${ok?T.green+"66":T.border2}`,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:"11px",fontWeight:"800",color:ok?T.green2:T.dim,fontFamily:"monospace",
+                }}>{i+1}</div>
+                <input type="number" inputMode="decimal" placeholder="—" value={s.weight}
+                  ref={el=>{if(el)refs.current[`${i}w`]=el;}}
+                  onChange={e=>upd(i,"weight",e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&refs.current[`${i}r`]?.focus()}
+                  style={{...INP,fontSize:"24px",fontWeight:"900",textAlign:"center",
+                    color:s.weight?T.text:T.dim,
+                    border:`1px solid ${s.weight?T.border2:T.border}`,
+                    background:s.weight?T.card2:T.card}}/>
+                <input type="number" inputMode="numeric" placeholder="—" value={s.reps}
+                  ref={el=>{if(el)refs.current[`${i}r`]=el;}}
+                  onChange={e=>upd(i,"reps",e.target.value)}
+                  onKeyDown={e=>{if(e.key==="Enter"){addSet();setTimeout(()=>refs.current[`${i+1}w`]?.focus(),50);}}}
+                  style={{...INP,fontSize:"24px",fontWeight:"900",textAlign:"center",
+                    color:s.reps?T.text:T.dim,
+                    border:`1px solid ${s.reps?T.border2:T.border}`,
+                    background:s.reps?T.card2:T.card}}/>
+                <button onClick={()=>del(i)} style={{background:"none",border:"none",color:T.dim,cursor:"pointer",fontSize:"18px",padding:0,lineHeight:1}}>×</button>
+              </div>
+            );
+          })}
+
+          <button onClick={addSet} style={{
+            width:"100%",marginTop:"8px",background:"transparent",
+            border:`1px dashed ${T.border2}`,borderRadius:"10px",
+            color:T.sub,cursor:"pointer",fontSize:"13px",fontWeight:"700",padding:"10px",
+          }}>+ Serie {sets.length+1}</button>
+
+          {notes&&<div style={{fontSize:"11px",color:T.dim,marginTop:"10px",paddingTop:"10px",
+            borderTop:`1px solid ${T.border}`}}>{notes}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── DAY VIEW ─────────────────────────────────────────────────────────────────
+function DayView({ dayKey, session, onUpdate, allData, routine }) {
+  const exs=session?.exercises||{};
+  const [custom,setCustom]=useState("");
+  const names=[...routine.map(e=>e.name),...Object.keys(exs).filter(k=>!routine.find(e=>e.name===k))];
+  const upd=(name,d)=>onUpdate({...session,exercises:{...exs,[name]:d}});
+  const addCustom=()=>{if(!custom.trim())return;upd(custom.trim(),{sets:[],notes:""});setCustom("");};
+  const done=names.filter(n=>(exs[n]?.sets||[]).some(s=>(parseFloat(s.weight)||0)>0)).length;
+
+  return (
+    <div>
+      {/* Progress */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"6px"}}>
+        <span style={{fontSize:"11px",fontWeight:"700",color:T.sub,letterSpacing:"0.1em",textTransform:"uppercase"}}>Sesión</span>
+        <span style={{fontSize:"12px",fontWeight:"800",color:T.accent2}}>{done} / {names.length}</span>
+      </div>
+      <div style={{height:"3px",background:T.border,borderRadius:"3px",marginBottom:"20px"}}>
+        <div style={{height:"3px",background:`linear-gradient(90deg,${T.accent},${T.accent2})`,
+          borderRadius:"3px",width:`${names.length?(done/names.length)*100:0}%`,transition:"width .4s"}}/>
+      </div>
+
+      {/* ABS note */}
+      <div style={{
+        fontSize:"12px",color:T.sub,
+        background:T.card,border:`1px solid ${T.border}`,
+        borderRadius:"10px",padding:"10px 14px",marginBottom:"16px",
+        display:"flex",gap:"8px",alignItems:"center",
+      }}>
+        <span style={{color:T.dim}}>✦</span>
+        <span>ABS 50 kg · Elevaciones paralelas <span style={{color:T.dim}}>— 3 × fallo</span></span>
+      </div>
+
+      {names.map((n,i)=>(
+        <ExCard key={n} index={i+1} name={n} allData={allData}
+          meta={routine.find(e=>e.name===n)}
+          data={exs[n]||{sets:[],notes:routine.find(e=>e.name===n)?.notes||""}}
+          onChange={d=>upd(n,d)}/>
+      ))}
+
+      <div style={{display:"flex",gap:"8px",marginTop:"12px"}}>
+        <input value={custom} onChange={e=>setCustom(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&addCustom()}
+          placeholder="Añadir ejercicio extra…"
+          style={{...INP,flex:1,fontSize:"14px"}}/>
+        <button onClick={addCustom} style={{
+          background:T.card2,border:`1px solid ${T.border2}`,color:T.sub,
+          borderRadius:"12px",padding:"10px 18px",cursor:"pointer",fontSize:"18px",fontWeight:"700",
+        }}>+</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── PROGRESS VIEW ────────────────────────────────────────────────────────────
+function ProgressView({ allData, routine }) {
+  const [selDay,setSelDay]=useState(DAYS[0].key);
+  const [selEx, setSelEx] =useState(null);
+  const exList=routine[selDay]||[];
+  useEffect(()=>setSelEx(null),[selDay]);
+
+  return (
+    <div>
+      <DayTabs sel={selDay} onSel={setSelDay}/>
+      {exList.map(ex=>{
+        const sessions=lastNSessions(allData,ex.name,6);
+        const isOpen=selEx===ex.name;
+        const lastS=sessions[sessions.length-1];
+        const prevS=sessions[sessions.length-2];
+        const delta=lastS&&prevS?lastS.best-prevS.best:null;
+
+        return (
+          <div key={ex.name} style={{
+            background:T.card,border:`1px solid ${isOpen?T.accent+"66":T.border}`,
+            borderRadius:"14px",marginBottom:"8px",overflow:"hidden",transition:"border .2s",
+          }}>
+            <div onClick={()=>setSelEx(isOpen?null:ex.name)}
+              style={{display:"flex",alignItems:"center",gap:"12px",padding:"14px 16px",cursor:"pointer"}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:"14px",fontWeight:"700",color:T.text}}>{ex.name}</div>
+                <div style={{fontSize:"12px",color:T.sub,marginTop:"2px"}}>{ex.sets} × {ex.reps}</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0,minWidth:"60px"}}>
+                {lastS
+                  ?<div style={{fontSize:"20px",fontWeight:"900",color:T.green2,fontFamily:"monospace",lineHeight:1}}>
+                    {lastS.best}<span style={{fontSize:"11px",color:T.sub,marginLeft:"2px"}}>kg</span>
+                  </div>
+                  :<div style={{fontSize:"13px",color:T.dim}}>—</div>
+                }
+                {delta!==null&&<div style={{fontSize:"11px",fontWeight:"800",color:delta>0?T.green2:delta<0?T.red2:T.dim,marginTop:"2px"}}>
+                  {delta>0?"+":""}{delta.toFixed(1)} kg
+                </div>}
+              </div>
+              {/* Mini bar chart */}
+              <div style={{display:"flex",gap:"2px",alignItems:"flex-end",height:"28px",flexShrink:0}}>
+                {(() => {
+                  const maxB=sessions.length?Math.max(...sessions.map(s=>s.best)):0;
+                  const minB=sessions.length?Math.min(...sessions.map(s=>s.best)):0;
+                  return [
+                    ...sessions.map((s,i)=>{
+                      const h=maxB===minB?20:6+((s.best-minB)/(maxB-minB))*20;
+                      return <div key={i} style={{width:"7px",height:`${h}px`,borderRadius:"2px",
+                        background:i===sessions.length-1?T.green2:T.accent+"55"}}/>;
+                    }),
+                    ...Array.from({length:Math.max(0,6-sessions.length)}).map((_,i)=>(
+                      <div key={`e${i}`} style={{width:"7px",height:"6px",borderRadius:"2px",background:T.border}}/>
+                    )),
+                  ];
+                })()}
+              </div>
+              <span style={{fontSize:"11px",color:T.dim}}>{isOpen?"▲":"▼"}</span>
+            </div>
+
+            {isOpen&&(
+              <div style={{borderTop:`1px solid ${T.border}`,padding:"14px 16px"}}>
+                {sessions.length===0
+                  ?<div style={{fontSize:"12px",color:T.dim,textAlign:"center",padding:"10px 0"}}>Sin registros aún</div>
+                  :<>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"14px"}}>
+                      {[
+                        {l:"Mejor",v:`${Math.max(...sessions.map(s=>s.best))} kg`},
+                        {l:"Inicio",v:`${sessions[0].best} kg`},
+                        {l:"Sesiones",v:`${sessions.length}`},
+                      ].map(({l,v})=>(
+                        <div key={l} style={{background:T.bg,borderRadius:"10px",padding:"10px 12px",textAlign:"center"}}>
+                          <div style={{fontSize:"10px",fontWeight:"700",color:T.dim,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>{l}</div>
+                          <div style={{fontSize:"17px",fontWeight:"900",color:T.green2,fontFamily:"monospace"}}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {sessions.length>1&&(()=>{
+                      const W=280,H=70;
+                      const bests=sessions.map(s=>s.best);
+                      const mx=Math.max(...bests), mn=Math.min(...bests);
+                      const pts=sessions.map((s,i)=>({
+                        x:(i/(sessions.length-1))*(W-8)+4,
+                        y:H-4-((s.best-mn)/(mx-mn||1))*(H-14),
+                      }));
+                      const path="M"+pts.map(p=>`${p.x},${p.y}`).join(" L");
+                      return (
+                        <div style={{background:T.bg,borderRadius:"10px",padding:"12px",marginBottom:"14px"}}>
+                          <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible"}}>
+                            <defs>
+                              <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={T.accent} stopOpacity=".25"/>
+                                <stop offset="100%" stopColor={T.accent} stopOpacity="0"/>
+                              </linearGradient>
+                            </defs>
+                            <path d={`${path} L${pts[pts.length-1].x},${H} L${pts[0].x},${H} Z`} fill="url(#gr)"/>
+                            <path d={path} fill="none" stroke={T.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            {pts.map((p,i)=>(
+                              <g key={i}>
+                                <circle cx={p.x} cy={p.y} r={i===pts.length-1?4:2.5}
+                                  fill={i===pts.length-1?T.green2:T.accent}/>
+                                {(i===0||i===pts.length-1)&&(
+                                  <text x={p.x} y={p.y-7} textAnchor={i===0?"start":"end"}
+                                    fill={T.sub} fontSize="9" fontFamily="monospace">{sessions[i].best}kg</text>
+                                )}
+                              </g>
+                            ))}
+                          </svg>
+                        </div>
+                      );
+                    })()}
+
+                    {[...sessions].reverse().map((sess,i)=>{
+                      const prev=[...sessions].reverse()[i+1];
+                      const d=prev?sess.best-prev.best:null;
+                      return (
+                        <div key={sess.date} style={{
+                          display:"flex",justifyContent:"space-between",alignItems:"center",
+                          padding:"9px 0",borderBottom:i<sessions.length-1?`1px solid ${T.border}`:"none",
+                        }}>
+                          <div>
+                            <div style={{fontSize:"12px",fontWeight:"600",color:i===0?T.accent2:T.text}}>{fmtDate(sess.date)}</div>
+                            <div style={{display:"flex",gap:"4px",flexWrap:"wrap",marginTop:"4px"}}>
+                              {sess.sets.filter(s=>(parseFloat(s.weight)||0)>0).map((s,j)=>(
+                                <span key={j} style={{fontSize:"11px",color:T.sub,background:T.bg,
+                                  borderRadius:"5px",padding:"2px 7px",fontFamily:"monospace"}}>
+                                  {s.weight}{s.reps?`×${s.reps}`:""}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{display:"flex",gap:"10px",alignItems:"center",flexShrink:0,marginLeft:"12px"}}>
+                            {d!==null&&<span style={{fontSize:"12px",fontWeight:"700",color:d>0?T.green2:d<0?T.red2:T.dim}}>
+                              {d>0?"+":""}{d.toFixed(1)}kg
+                            </span>}
+                            <span style={{fontSize:"18px",fontWeight:"900",color:T.green2,fontFamily:"monospace"}}>
+                              {sess.best}<span style={{fontSize:"10px",color:T.sub,marginLeft:"2px"}}>kg</span>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                }
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── CARGAS VIEW ──────────────────────────────────────────────────────────────
+function CargasView({ allData, routine }) {
+  const [selDay,setSelDay]=useState(DAYS[0].key);
+  const [selEx, setSelEx] =useState(null);
+  const exList=routine[selDay]||[];
+  useEffect(()=>setSelEx(null),[selDay]);
+
+  const today=todayKey(), wAgo=weekAgoKey();
+  const d2=new Date(); d2.setDate(d2.getDate()-14);
+  const twoW=d2.toISOString().split("T")[0];
+
+  return (
+    <div>
+      <DayTabs sel={selDay} onSel={setSelDay}/>
+      {exList.map(ex=>{
+        const history=weeklyBests(allData,ex.name);
+        const thisW=bestInRange(allData,ex.name,wAgo,today);
+        const lastW=bestInRange(allData,ex.name,twoW,wAgo);
+        const delta=thisW&&lastW?thisW.kg-lastW.kg:null;
+        const isOpen=selEx===ex.name;
+        const maxKg=history.length?Math.max(...history.map(h=>h.kg)):0;
+        const minKg=history.length?Math.min(...history.map(h=>h.kg)):0;
+
+        return (
+          <div key={ex.name} style={{
+            background:T.card,border:`1px solid ${isOpen?T.accent+"66":T.border}`,
+            borderRadius:"14px",marginBottom:"8px",overflow:"hidden",transition:"border .2s",
+          }}>
+            <div onClick={()=>setSelEx(isOpen?null:ex.name)}
+              style={{display:"flex",alignItems:"center",gap:"12px",padding:"14px 16px",cursor:"pointer"}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:"14px",fontWeight:"700",color:T.text}}>{ex.name}</div>
+                <div style={{fontSize:"12px",color:T.sub,marginTop:"2px"}}>{ex.sets} × {ex.reps}</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                {thisW
+                  ?<div style={{fontSize:"20px",fontWeight:"900",color:T.green2,fontFamily:"monospace",lineHeight:1}}>
+                    {thisW.kg}<span style={{fontSize:"11px",color:T.sub,marginLeft:"2px"}}>kg</span>
+                  </div>
+                  :<div style={{fontSize:"14px",color:T.dim}}>—</div>
+                }
+                {delta!==null&&<div style={{fontSize:"11px",fontWeight:"800",color:delta>=0?T.green2:T.red2,marginTop:"2px"}}>
+                  {delta>0?"+":""}{delta.toFixed(1)} kg
+                </div>}
+              </div>
+              {history.length>1&&(
+                <svg width="52" height="28" viewBox="0 0 52 28" style={{flexShrink:0}}>
+                  {history.map((h,i)=>{
+                    if(!i) return null;
+                    const x1=((i-1)/(history.length-1))*50+1;
+                    const y1=27-((history[i-1].kg-minKg)/(maxKg-minKg||1))*24;
+                    const x2=(i/(history.length-1))*50+1;
+                    const y2=27-((h.kg-minKg)/(maxKg-minKg||1))*24;
+                    return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={T.accent} strokeWidth="1.5" strokeLinecap="round"/>;
+                  })}
+                  {history.map((h,i)=>{
+                    const x=(i/(history.length-1))*50+1;
+                    const y=27-((h.kg-minKg)/(maxKg-minKg||1))*24;
+                    return <circle key={i} cx={x} cy={y} r={i===history.length-1?3:2}
+                      fill={i===history.length-1?T.green2:T.accent}/>;
+                  })}
+                </svg>
+              )}
+              <span style={{fontSize:"11px",color:T.dim}}>{isOpen?"▲":"▼"}</span>
+            </div>
+
+            {isOpen&&(
+              <div style={{borderTop:`1px solid ${T.border}`,padding:"14px 16px"}}>
+                {history.length===0&&<div style={{fontSize:"12px",color:T.dim,textAlign:"center",padding:"10px 0"}}>Sin datos</div>}
+                {history.length>0&&(
+                  <>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"14px"}}>
+                      {[{l:"Mejor",v:`${maxKg} kg`},{l:"Inicio",v:`${history[0].kg} kg`},{l:"Semanas",v:`${history.length}`}].map(({l,v})=>(
+                        <div key={l} style={{background:T.bg,borderRadius:"10px",padding:"10px 12px",textAlign:"center"}}>
+                          <div style={{fontSize:"10px",fontWeight:"700",color:T.dim,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>{l}</div>
+                          <div style={{fontSize:"17px",fontWeight:"900",color:T.green2,fontFamily:"monospace"}}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {history.length>1&&(()=>{
+                      const W=280,H=70;
+                      const pts=history.map((h,i)=>({
+                        x:(i/(history.length-1))*(W-8)+4,
+                        y:H-4-((h.kg-minKg)/(maxKg-minKg||1))*(H-14),
+                      }));
+                      const path="M"+pts.map(p=>`${p.x},${p.y}`).join(" L");
+                      return (
+                        <div style={{background:T.bg,borderRadius:"10px",padding:"12px",marginBottom:"14px"}}>
+                          <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible"}}>
+                            <defs>
+                              <linearGradient id="gr2" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor={T.accent} stopOpacity=".25"/>
+                                <stop offset="100%" stopColor={T.accent} stopOpacity="0"/>
+                              </linearGradient>
+                            </defs>
+                            <path d={`${path} L${pts[pts.length-1].x},${H} L${pts[0].x},${H} Z`} fill="url(#gr2)"/>
+                            <path d={path} fill="none" stroke={T.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            {pts.map((p,i)=>(
+                              <g key={i}>
+                                <circle cx={p.x} cy={p.y} r={i===pts.length-1?4:2.5} fill={i===pts.length-1?T.green2:T.accent}/>
+                                {(i===0||i===pts.length-1)&&(
+                                  <text x={p.x} y={p.y-7} textAnchor={i===0?"start":"end"}
+                                    fill={T.sub} fontSize="9" fontFamily="monospace">{history[i].kg}kg</text>
+                                )}
+                              </g>
+                            ))}
+                          </svg>
+                          <div style={{display:"flex",justifyContent:"space-between",marginTop:"4px"}}>
+                            <span style={{fontSize:"9px",color:T.dim}}>{history[0].wk}</span>
+                            <span style={{fontSize:"9px",color:T.dim}}>{history[history.length-1].wk}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {[...history].reverse().slice(0,8).map((h,i)=>{
+                      const prev=[...history].reverse()[i+1];
+                      const d=prev?h.kg-prev.kg:null;
+                      return (
+                        <div key={h.wk} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                          padding:"8px 0",borderBottom:i<Math.min(history.length,8)-1?`1px solid ${T.border}`:"none"}}>
+                          <div>
+                            <div style={{fontSize:"12px",fontWeight:"600",color:i===0?T.accent2:T.text}}>{h.wk}</div>
+                            <div style={{fontSize:"10px",color:T.dim}}>{fmtDate(h.date)}</div>
+                          </div>
+                          <div style={{display:"flex",gap:"12px",alignItems:"center"}}>
+                            {d!==null&&<span style={{fontSize:"11px",fontWeight:"700",color:d>0?T.green2:d<0?T.red2:T.dim}}>
+                              {d>0?"+":""}{d.toFixed(1)}kg
+                            </span>}
+                            <span style={{fontSize:"18px",fontWeight:"900",color:T.green2,fontFamily:"monospace"}}>
+                              {h.kg}<span style={{fontSize:"10px",color:T.sub,marginLeft:"2px"}}>kg</span>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── ROUTINE EDITOR ───────────────────────────────────────────────────────────
+function RoutineEditor({ routine, onSave }) {
+  const [local,setLocal]=useState(()=>JSON.parse(JSON.stringify(routine)));
+  const [sel,setSel]=useState(DAYS[0].key);
+  const [saved,setSaved]=useState(false);
+  const [newEx,setNewEx]=useState({name:"",sets:3,reps:"8–12",rest:120,notes:""});
+  const day=local[sel]||[];
+
+  const updEx=(i,f,v)=>{const d=[...day];d[i]={...d[i],[f]:f==="sets"?parseInt(v)||1:v};setLocal({...local,[sel]:d});};
+  const delEx=i=>setLocal({...local,[sel]:day.filter((_,j)=>j!==i)});
+  const move=(i,dir)=>{const d=[...day],j=i+dir;if(j<0||j>=d.length)return;[d[i],d[j]]=[d[j],d[i]];setLocal({...local,[sel]:d});};
+  const addEx=()=>{if(!newEx.name.trim())return;setLocal({...local,[sel]:[...day,{...newEx,name:newEx.name.trim()}]});setNewEx({name:"",sets:3,reps:"8–12",rest:120,notes:""});};
+  const save=()=>{onSave(local);setSaved(true);setTimeout(()=>setSaved(false),2000);};
+
+  return (
+    <div>
+      <DayTabs sel={sel} onSel={setSel}/>
+      {day.map((ex,i)=>(
+        <div key={i} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:"14px",padding:"14px 16px",marginBottom:"8px"}}>
+          <div style={{display:"flex",gap:"8px",alignItems:"center",marginBottom:"10px"}}>
+            <div style={{display:"flex",flexDirection:"column",gap:"3px"}}>
+              <button onClick={()=>move(i,-1)} style={ARR}>▲</button>
+              <button onClick={()=>move(i,1)}  style={ARR}>▼</button>
+            </div>
+            <div style={{width:"24px",height:"24px",borderRadius:"6px",background:T.accent+"20",border:`1px solid ${T.accent}33`,
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:"800",color:T.accent,flexShrink:0}}>
+              {i+1}
+            </div>
+            <input value={ex.name} onChange={e=>updEx(i,"name",e.target.value)} style={{...INP,flex:1,fontSize:"14px",fontWeight:"700"}}/>
+            <button onClick={()=>delEx(i)} style={{background:T.redBg,border:`1px solid ${T.red}44`,color:T.red2,
+              borderRadius:"8px",padding:"7px 11px",cursor:"pointer",fontSize:"14px"}}>×</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"8px"}}>
+            {[["Series","sets",ex.sets,"number"],["Reps","reps",ex.reps,"text"],["Descanso (s)","rest",ex.rest,"number"]].map(([l,f,v,t])=>(
+              <div key={f}>
+                <div style={{fontSize:"10px",fontWeight:"700",color:T.dim,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>{l}</div>
+                <input type={t} value={v} onChange={e=>updEx(i,f,e.target.value)} style={{...INP,textAlign:"center",fontSize:"14px"}}/>
+              </div>
+            ))}
+          </div>
+          <input value={ex.notes} onChange={e=>updEx(i,"notes",e.target.value)}
+            placeholder="Notas…" style={{...INP,fontSize:"12px",color:T.sub}}/>
+        </div>
+      ))}
+
+      <div style={{background:T.card,border:`1px dashed ${T.accent}44`,borderRadius:"14px",padding:"16px",marginBottom:"16px",marginTop:"16px"}}>
+        <div style={{fontSize:"11px",fontWeight:"700",color:T.accent,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:"12px"}}>+ Nuevo ejercicio</div>
+        <input value={newEx.name} onChange={e=>setNewEx({...newEx,name:e.target.value})}
+          placeholder="Nombre…" style={{...INP,fontSize:"15px",fontWeight:"700",marginBottom:"10px"}}/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"8px",marginBottom:"10px"}}>
+          {[["Series","sets",newEx.sets,"number"],["Reps","reps",newEx.reps,"text"],["Descanso (s)","rest",newEx.rest,"number"]].map(([l,f,v,t])=>(
+            <div key={f}>
+              <div style={{fontSize:"10px",fontWeight:"700",color:T.dim,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:"4px"}}>{l}</div>
+              <input type={t} value={v} onChange={e=>setNewEx({...newEx,[f]:t==="number"?parseInt(e.target.value)||0:e.target.value})} style={{...INP,textAlign:"center",fontSize:"14px"}}/>
+            </div>
+          ))}
+        </div>
+        <input value={newEx.notes} onChange={e=>setNewEx({...newEx,notes:e.target.value})}
+          placeholder="Notas…" style={{...INP,fontSize:"12px",color:T.sub,marginBottom:"12px"}}/>
+        <button onClick={addEx} style={{...PB(T.accent),width:"100%",justifyContent:"center"}}>Añadir ejercicio</button>
+      </div>
+      <button onClick={save} style={{...PB(saved?T.green:T.accent),width:"100%",justifyContent:"center",
+        fontSize:"15px",padding:"14px",boxShadow:saved?`0 0 20px ${T.green}44`:"none"}}>
+        {saved?"✓ Guardado":"Guardar rutina"}
+      </button>
+    </div>
+  );
+}
+
+// ─── SHARED ───────────────────────────────────────────────────────────────────
+function DayTabs({ sel, onSel }) {
+  return (
+    <div style={{overflowX:"auto",marginBottom:"20px",paddingBottom:"4px"}}>
+      <div style={{display:"flex",gap:"6px",width:"max-content"}}>
+        {DAYS.map(d=>{const act=d.key===sel;return(
+          <button key={d.key} onClick={()=>onSel(d.key)} style={{
+            padding:"7px 14px",borderRadius:"20px",cursor:"pointer",
+            border:`1px solid ${act?T.accent:T.border2}`,
+            background:act?T.accent+"22":"transparent",
+            color:act?T.accent2:T.sub,
+            fontSize:"12px",fontWeight:act?"800":"400",
+          }}>{d.label} <span style={{opacity:.5,fontSize:"10px"}}>D{d.num}</span></button>
+        );})}
+      </div>
+    </div>
+  );
+}
+
+// ─── ROOT APP ─────────────────────────────────────────────────────────────────
+const VIEWS=[{id:"today",label:"Hoy"},{id:"progress",label:"Progreso"},{id:"cargas",label:"Cargas"},{id:"editor",label:"Editar"}];
+
+export default function App() {
+  const [allData,setAllData]=useState({});
+  const [routine,setRoutine]=useState(DEFAULT_ROUTINE);
+  const [loaded, setLoaded] =useState(false);
+  const [view,   setView]   =useState("today");
+  const [dayIdx, setDayIdx] =useState(0);
+  const today=todayKey();
+
+  useEffect(()=>{
+    Promise.all([db.load(),db.loadR()]).then(([data,r])=>{
+      setAllData(data); if(r) setRoutine(r);
+      setDayIdx(nextDayIdx(data)); setLoaded(true);
+    });
+  },[]);
+
+  const updateSession=useCallback(async(dk,s)=>{
+    const nd={...allData,[today]:{...(allData[today]||{}),[dk]:s}};
+    setAllData(nd); await db.save(nd);
+  },[allData,today]);
+
+  const saveRoutine=useCallback(async r=>{setRoutine(r);await db.saveR(r);},[]);
+
+  const activeDay=DAYS[dayIdx];
+  const todaySess=allData?.[today]?.[activeDay.key]||{exercises:{}};
+  const trained=allData?.[today]&&Object.keys(allData[today]).length>0;
+
+  if(!loaded) return (
+    <div style={{...APP,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{color:T.dim,fontSize:"13px"}}>cargando…</div>
+    </div>
+  );
+
+  return (
+    <div style={APP}>
+      <style>{`
+        input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+        input[type=number]{-moz-appearance:textfield}
+        *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+        input:focus,textarea:focus{outline:none;box-shadow:0 0 0 2px ${T.accent}33}
+        textarea{font-family:inherit}
+        @keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+        button{transition:opacity .12s} button:active{opacity:.65}
+      `}</style>
+      <FloatingTimer/>
+
+      <div style={{maxWidth:"460px",margin:"0 auto",padding:"30px 16px 110px"}}>
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:"28px"}}>
+          <div>
+            <div style={{fontSize:"10px",fontWeight:"700",color:T.dim,letterSpacing:"0.22em",textTransform:"uppercase",marginBottom:"6px"}}>
+              Tirón · Empujes · Pierna
+            </div>
+            <div style={{fontSize:"36px",fontWeight:"900",color:T.text,letterSpacing:"-0.05em",lineHeight:.88}}>
+              Gym<span style={{color:T.accent2}}>Tracker</span>
+            </div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:"11px",color:T.sub,fontFamily:"monospace"}}>{fmtDate(today)}</div>
+            {trained&&<div style={{fontSize:"10px",color:T.green,marginTop:"4px",fontWeight:"700"}}>✓ Entrenado hoy</div>}
+          </div>
+        </div>
+
+        {/* Nav */}
+        <div style={{
+          display:"flex",gap:"3px",background:T.card,
+          border:`1px solid ${T.border2}`,borderRadius:"14px",padding:"4px",marginBottom:"26px",
+        }}>
+          {VIEWS.map(v=>(
+            <button key={v.id} onClick={()=>setView(v.id)} style={{
+              flex:1,padding:"9px 6px",borderRadius:"11px",border:"none",cursor:"pointer",
+              fontSize:"12px",fontWeight:view===v.id?"800":"400",
+              background:view===v.id?T.card2:"transparent",
+              color:view===v.id?T.text:T.dim,
+              boxShadow:view===v.id?`inset 0 1px 0 ${T.border2}`:"none",
+            }}>{v.label}</button>
+          ))}
+        </div>
+
+        {view==="today"&&<>
+          {/* Day pills */}
+          <div style={{overflowX:"auto",marginBottom:"16px",paddingBottom:"4px"}}>
+            <div style={{display:"flex",gap:"6px",width:"max-content"}}>
+              {DAYS.map((d,i)=>{const act=i===dayIdx;return(
+                <button key={d.key} onClick={()=>setDayIdx(i)} style={{
+                  padding:"8px 14px",borderRadius:"20px",cursor:"pointer",
+                  border:`1px solid ${act?T.accent:T.border}`,
+                  background:act?T.accent+"20":"transparent",
+                  color:act?T.accent2:T.dim,
+                  fontSize:"12px",fontWeight:act?"800":"400",
+                }}>{d.label}<span style={{opacity:.5,marginLeft:"5px",fontSize:"10px"}}>D{d.num}</span></button>
+              );})}
+            </div>
+          </div>
+          <div style={{paddingBottom:"16px",marginBottom:"18px",borderBottom:`1px solid ${T.border}`}}>
+            <div style={{fontSize:"14px",fontWeight:"800",color:T.accent2}}>{activeDay.label} — Día {activeDay.num}</div>
+            <div style={{fontSize:"12px",color:T.sub,marginTop:"3px"}}>{activeDay.sub}</div>
+          </div>
+          <DayView dayKey={activeDay.key} session={todaySess}
+            onUpdate={s=>updateSession(activeDay.key,s)}
+            allData={allData} routine={routine[activeDay.key]||[]}/>
+        </>}
+        {view==="progress"&&<ProgressView allData={allData} routine={routine}/>}
+        {view==="cargas"  &&<CargasView   allData={allData} routine={routine}/>}
+        {view==="editor"  &&<RoutineEditor routine={routine} onSave={saveRoutine}/>}
+      </div>
+    </div>
+  );
+}
+
+// ─── STYLES ───────────────────────────────────────────────────────────────────
+const APP={minHeight:"100vh",background:T.bg,fontFamily:"-apple-system,sans-serif",color:T.text};
+const INP={
+  background:T.card2,border:`1px solid ${T.border2}`,borderRadius:"10px",
+  padding:"10px 12px",color:T.text,fontSize:"14px",outline:"none",width:"100%",fontFamily:"inherit",
+};
+const PB=col=>({
+  display:"flex",alignItems:"center",gap:"6px",
+  background:col+"20",border:`1px solid ${col}55`,color:col,
+  borderRadius:"10px",padding:"10px 16px",cursor:"pointer",fontSize:"13px",fontWeight:"700",
+});
+const ARR={background:"none",border:`1px solid ${T.border2}`,color:T.sub,
+  borderRadius:"5px",cursor:"pointer",fontSize:"10px",padding:"2px 6px",lineHeight:1.4};
