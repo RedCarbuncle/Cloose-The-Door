@@ -129,11 +129,7 @@ const SB_KEY = "sb_publishable_Kyz6cXjoQKvzEa9yjcOt9g_wuuQ1S03";
 const SB_HDR = { "Content-Type":"application/json", "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` };
 
 // Stable anonymous user ID — stored in localStorage so it persists across sessions
-const getUserId = () => {
-  let id = localStorage.getItem("gym_user_id");
-  if (!id) { id = "u_" + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem("gym_user_id", id); }
-  return id;
-};
+const getUserId = () => "mi_gym_2025";
 
 const sbFetch = async (path, opts={}) => {
   const res = await fetch(SB_URL + path, { ...opts, headers: { ...SB_HDR, ...(opts.headers||{}) } });
