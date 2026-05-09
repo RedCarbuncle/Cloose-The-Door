@@ -1,21 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
- <meta charset="UTF-8"/>
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
   <meta name="theme-color" content="#0A0A0A"/>
   <title> </title>
-  <link rel="manifest" href="data:application/json,{
-    &quot;name&quot;:&quot; &quot;,
-    &quot;short_name&quot;:&quot; &quot;,
-    &quot;start_url&quot;:&quot;/&quot;,
-    &quot;display&quot;:&quot;standalone&quot;,
-    &quot;background_color&quot;:&quot;%230A0A0A&quot;,
-    &quot;theme_color&quot;:&quot;%230A0A0A&quot;,
-    &quot;orientation&quot;:&quot;portrait&quot;
-  }"/>
+  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot; &quot;,&quot;short_name&quot;:&quot; &quot;,&quot;start_url&quot;:&quot;/&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%230A0A0A&quot;,&quot;theme_color&quot;:&quot;%230A0A0A&quot;,&quot;orientation&quot;:&quot;portrait&quot;}"/>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#0A0A0A;font-family:-apple-system,sans-serif;-webkit-text-size-adjust:100%}
@@ -392,14 +384,8 @@ function ExCard({ index, name, meta, data, onChange, allData }) {
   const cardBg    = completed ? T.greenBg : T.card;
   const cardBorder= completed ? T.green+"88" : T.border;
 
-  // Collapse on complete
+  // Never auto-collapse — user controls open/close manually
   const [open, setOpen] = useState(true);
-  const wasCompleted = useRef(false);
-  useEffect(()=>{
-    if(completed&&!wasCompleted.current) setOpen(false);
-    if(!completed) setOpen(true);
-    wasCompleted.current=completed;
-  },[completed]);
 
   const lastSess = lastSessionSets(allData, name);
 
@@ -411,7 +397,7 @@ function ExCard({ index, name, meta, data, onChange, allData }) {
       prefilled.current=true;
       const ps=lastSess.sets.filter(s=>(parseFloat(s.weight)||0)>0)
         .map(s=>({weight:s.weight,reps:s.reps||"",id:Date.now()+Math.random()}));
-      if(ps.length) onChange({...data,notes,sets:ps});
+      if(ps.length) onChange({...data,notes,sets:ps},true);
     }
   },[]); // eslint-disable-line
 
@@ -421,6 +407,14 @@ function ExCard({ index, name, meta, data, onChange, allData }) {
   };
   const upd=(i,f,v)=>{const ns=[...sets];ns[i]={...ns[i],[f]:v};onChange({...data,notes,sets:ns});};
   const del=i=>onChange({...data,notes,sets:sets.filter((_,j)=>j!==i)});
+  const adjReps=(i,delta)=>{
+    const cur=parseInt(sets[i]?.reps)||0;
+    const nv=Math.max(0,cur+delta);
+    upd(i,"reps",String(nv));
+  };
+
+  const loadType = data.loadType||"";
+  const setLoadType = v => onChange({...data,notes,sets,loadType:v});
 
   const summaryText=sets.filter(s=>(parseFloat(s.weight)||0)>0).map(s=>`${s.weight}${s.reps?`×${s.reps}`:""}`).join(" · ");
 
@@ -517,11 +511,25 @@ function ExCard({ index, name, meta, data, onChange, allData }) {
             </div>
           )}
 
+          {/* Load type selector */}
+          <div style={{display:"flex",gap:"5px",marginBottom:"12px",flexWrap:"wrap"}}>
+            {[["","—"],["bilateral","Bilateral"],["unilateral","Unilateral"],["mancuernas","Mancuernas"],["cable","Cable"],["máquina","Máquina"]].map(([v,l])=>{
+              const act=loadType===v;
+              return <button key={v} onClick={()=>setLoadType(v)} style={{
+                padding:"4px 10px",borderRadius:"6px",cursor:"pointer",
+                fontSize:"11px",fontWeight:act?"700":"400",
+                border:`1px solid ${act?T.accent:T.border}`,
+                background:act?T.accent+"22":"transparent",
+                color:act?T.accent2:T.dim,
+              }}>{l}</button>;
+            })}
+          </div>
+
           {/* Column headers */}
           {sets.length>0&&(
-            <div style={{display:"grid",gridTemplateColumns:"30px 1fr 1fr 24px",gap:"6px",marginBottom:"6px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"28px 1fr 1fr 24px",gap:"6px",marginBottom:"6px"}}>
               {["","KG","REPS",""].map((h,i)=>(
-                <div key={i} style={{fontSize:"10px",fontWeight:"700",color:T.dim,letterSpacing:"0.1em"}}>{h}</div>
+                <div key={i} style={{fontSize:"10px",fontWeight:"700",color:T.dim,letterSpacing:"0.1em",textAlign:i===2?"center":"left"}}>{h}</div>
               ))}
             </div>
           )}
@@ -529,29 +537,49 @@ function ExCard({ index, name, meta, data, onChange, allData }) {
           {sets.map((s,i)=>{
             const ok=(parseFloat(s.weight)||0)>0&&(parseFloat(s.reps)||0)>0;
             return (
-              <div key={s.id||i} style={{display:"grid",gridTemplateColumns:"30px 1fr 1fr 24px",gap:"6px",alignItems:"center",marginBottom:"6px"}}>
+              <div key={s.id||i} style={{display:"grid",gridTemplateColumns:"28px 1fr 1fr 24px",gap:"6px",alignItems:"center",marginBottom:"7px"}}>
+                {/* Serie badge */}
                 <div style={{
                   width:"28px",height:"28px",borderRadius:"8px",
                   background:ok?T.green+"25":T.card2,border:`1px solid ${ok?T.green+"66":T.border2}`,
                   display:"flex",alignItems:"center",justifyContent:"center",
                   fontSize:"11px",fontWeight:"800",color:ok?T.green2:T.dim,fontFamily:"monospace",
                 }}>{i+1}</div>
+
+                {/* KG input */}
                 <input type="number" inputMode="decimal" placeholder="—" value={s.weight}
                   ref={el=>{if(el)refs.current[`${i}w`]=el;}}
                   onChange={e=>upd(i,"weight",e.target.value)}
                   onKeyDown={e=>e.key==="Enter"&&refs.current[`${i}r`]?.focus()}
-                  style={{...INP,fontSize:"24px",fontWeight:"900",textAlign:"center",
+                  style={{...INP,fontSize:"22px",fontWeight:"900",textAlign:"center",
                     color:s.weight?T.text:T.dim,
                     border:`1px solid ${s.weight?T.border2:T.border}`,
                     background:s.weight?T.card2:T.card}}/>
-                <input type="number" inputMode="numeric" placeholder="—" value={s.reps}
-                  ref={el=>{if(el)refs.current[`${i}r`]=el;}}
-                  onChange={e=>upd(i,"reps",e.target.value)}
-                  onKeyDown={e=>{if(e.key==="Enter"){addSet();setTimeout(()=>refs.current[`${i+1}w`]?.focus(),50);}}}
-                  style={{...INP,fontSize:"24px",fontWeight:"900",textAlign:"center",
-                    color:s.reps?T.text:T.dim,
-                    border:`1px solid ${s.reps?T.border2:T.border}`,
-                    background:s.reps?T.card2:T.card}}/>
+
+                {/* REPS with +/- */}
+                <div style={{display:"flex",alignItems:"center",gap:"3px"}}>
+                  <button onClick={()=>adjReps(i,-1)} style={{
+                    width:"26px",height:"44px",borderRadius:"8px 0 0 8px",flexShrink:0,
+                    background:T.card,border:`1px solid ${T.border2}`,
+                    color:T.sub,cursor:"pointer",fontSize:"16px",fontWeight:"700",padding:0,
+                  }}>−</button>
+                  <input type="number" inputMode="numeric" placeholder="—" value={s.reps}
+                    ref={el=>{if(el)refs.current[`${i}r`]=el;}}
+                    onChange={e=>upd(i,"reps",e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"){addSet();setTimeout(()=>refs.current[`${i+1}w`]?.focus(),50);}}}
+                    style={{...INP,fontSize:"22px",fontWeight:"900",textAlign:"center",
+                      borderRadius:0,flex:1,minWidth:0,
+                      color:s.reps?T.text:T.dim,
+                      border:`1px solid ${s.reps?T.border2:T.border}`,
+                      background:s.reps?T.card2:T.card}}/>
+                  <button onClick={()=>adjReps(i,1)} style={{
+                    width:"26px",height:"44px",borderRadius:"0 8px 8px 0",flexShrink:0,
+                    background:T.card,border:`1px solid ${T.border2}`,
+                    color:T.sub,cursor:"pointer",fontSize:"16px",fontWeight:"700",padding:0,
+                  }}>+</button>
+                </div>
+
+                {/* Delete */}
                 <button onClick={()=>del(i)} style={{background:"none",border:"none",color:T.dim,cursor:"pointer",fontSize:"18px",padding:0,lineHeight:1}}>×</button>
               </div>
             );
@@ -576,7 +604,7 @@ function DayView({ dayKey, session, onUpdate, allData, routine }) {
   const exs=session?.exercises||{};
   const [custom,setCustom]=useState("");
   const names=[...routine.map(e=>e.name),...Object.keys(exs).filter(k=>!routine.find(e=>e.name===k))];
-  const upd=(name,d)=>onUpdate({...session,exercises:{...exs,[name]:d}});
+  const upd=(name,d,skipSave)=>onUpdate({...session,exercises:{...exs,[name]:d}},skipSave);
   const addCustom=()=>{if(!custom.trim())return;upd(custom.trim(),{sets:[],notes:""});setCustom("");};
   const done=names.filter(n=>(exs[n]?.sets||[]).some(s=>(parseFloat(s.weight)||0)>0)).length;
 
@@ -607,7 +635,7 @@ function DayView({ dayKey, session, onUpdate, allData, routine }) {
         <ExCard key={n} index={i+1} name={n} allData={allData}
           meta={routine.find(e=>e.name===n)}
           data={exs[n]||{sets:[],notes:routine.find(e=>e.name===n)?.notes||""}}
-          onChange={d=>upd(n,d)}/>
+          onChange={(d,sk)=>upd(n,d,sk)}/>
       ))}
 
       <div style={{display:"flex",gap:"8px",marginTop:"12px"}}>
@@ -1029,15 +1057,13 @@ function App() {
     });
   },[]);
 
-const updateSession = useCallback(async(dk,s)=>{
-  const nd={...allData,[today]:{...(allData[today]||{}),[dk]:s}};
-  setAllData(nd);
-  // Solo guardar si hay al menos un set con peso real
-  const hasRealData = Object.values(s.exercises||{}).some(ex=>
-    (ex.sets||[]).some(set=>(parseFloat(set.weight)||0)>0)
-  );
-  if(hasRealData) await db.save(nd);
-},[allData,today]);
+  const updateSession=useCallback(async(dk,s,skipSave)=>{
+    const nd={...allData,[today]:{...(allData[today]||{}),[dk]:s}};
+    setAllData(nd);
+    if(skipSave) return;
+    const hasReal=Object.values(s.exercises||{}).some(ex=>(ex.sets||[]).some(set=>(parseFloat(set.weight)||0)>0));
+    if(hasReal) await db.save(nd);
+  },[allData,today]);
 
   const saveRoutine=useCallback(async r=>{setRoutine(r);await db.saveR(r);},[]);
 
@@ -1117,7 +1143,7 @@ const updateSession = useCallback(async(dk,s)=>{
             <div style={{fontSize:"12px",color:T.sub,marginTop:"3px"}}>{activeDay.sub}</div>
           </div>
           <DayView dayKey={activeDay.key} session={todaySess}
-            onUpdate={s=>updateSession(activeDay.key,s)}
+            onUpdate={(s,sk)=>updateSession(activeDay.key,s,sk)}
             allData={allData} routine={routine[activeDay.key]||[]}/>
         </>}
         {view==="progress"&&<ProgressView allData={allData} routine={routine}/>}
