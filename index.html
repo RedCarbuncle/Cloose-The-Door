@@ -1029,10 +1029,15 @@ function App() {
     });
   },[]);
 
-  const updateSession=useCallback(async(dk,s)=>{
-    const nd={...allData,[today]:{...(allData[today]||{}),[dk]:s}};
-    setAllData(nd); await db.save(nd);
-  },[allData,today]);
+const updateSession = useCallback(async(dk,s)=>{
+  const nd={...allData,[today]:{...(allData[today]||{}),[dk]:s}};
+  setAllData(nd);
+  // Solo guardar si hay al menos un set con peso real
+  const hasRealData = Object.values(s.exercises||{}).some(ex=>
+    (ex.sets||[]).some(set=>(parseFloat(set.weight)||0)>0)
+  );
+  if(hasRealData) await db.save(nd);
+},[allData,today]);
 
   const saveRoutine=useCallback(async r=>{setRoutine(r);await db.saveR(r);},[]);
 
